@@ -1,0 +1,58 @@
+---
+- name: Build and run httpstat script in Docker
+  hosts: local
+  become: false
+
+  vars:
+    image_name: httpstat-script
+    container_name: httpstat-run
+    # Path to project root relative to the playbook location
+    project_root: "{{ playbook_dir | dirname }}"
+
+  tasks:
+    - name: Build Docker image from project root
+      community.docker.docker_image:
+        name: "{{ image_name }}"
+        build:
+          path: "{{ project_root }}"
+          dockerfile: "section2/Dockerfile"
+        source: build
+        force_source: true
+
+    - name: Remove previous container if exists
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        state: absent
+        force_kill: true
+
+    - name: Run container
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        image: "{{ image_name }}"
+        state: started
+        detach: true
+        restart_policy: "no"
+
+    - name: Wait for container to finish
+      community.docker.docker_container_info:
+        name: "{{ container_name }}"
+      register: container_info
+      until: container_info.container.State.Status != 'running'
+      retries: 30
+      delay: 2
+
+    - name: Fetch container logs
+      command: docker logs {{ container_name }}
+      register: container_logs
+      changed_when: false
+
+    - name: Show container logs
+      debug:
+        msg: "{{ container_logs.stdout_lines + container_logs.stderr_lines }}"
+
+    - name: Verify exit code is 0
+      assert:
+        that:
+          - container_info.container.State.ExitCode == 0
+        fail_msg: "Container exited with non-zero code: {{ container_info.container.State.ExitCode }}"
+        success_msg: "Script completed successfully (exit code 0)"

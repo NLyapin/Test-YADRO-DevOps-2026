@@ -10,8 +10,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# httpstat.us per task spec; switched to httpbin.org (identical API) because httpstat.us is currently unavailable
-BASE_URL = "https://httpbin.org/status"
+BASE_URL = "https://httpstat.us"
 
 # 5 different status codes to request
 TARGETS = [200, 201, 301, 404, 500]
